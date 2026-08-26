@@ -1,0 +1,7 @@
+{
+  "name": "Khawreen Library",
+  "description": "Comprehensive digital library and telegram bot for online reading, book downloads, AI summaries, and secure book purchases.",
+  "requestFramePermissions": [],
+  "prompt": "",
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

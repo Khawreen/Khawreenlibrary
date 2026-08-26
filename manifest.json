@@ -1,0 +1,23 @@
+{
+  "name": "Khawreen Library",
+  "short_name": "Khawreen",
+  "description": "A digital library where users can upload, share, and read books.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://storage.googleapis.com/khawreen-library-assets/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://storage.googleapis.com/khawreen-library-assets/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="https://storage.googleapis.com/khawreen-library-assets/icon-192x192.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Primary Meta Tags -->
+    <title>Khawreen Digital Library | خاورین کتابتون</title>
+    <meta name="title" content="Khawreen Digital Library | خاورین کتابتون" />
+    <meta name="description" content="Khawreen Library - Online Digital Library. Read, search, summarize, and download digital books and PDF materials." />
+    <meta name="keywords" content="Khawreen Library, Online Library, Digital Library, PDF Books, Free Books, Read Books Online" />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="Mohammad Gul Khawreen" />
+    <meta name="language" content="English" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Khawreen Library | Digital Library" />
+    <meta property="og:description" content="Khawreen Library - Explore, read, and download digital books online." />
+    <meta property="og:image" content="https://storage.googleapis.com/khawreen-library-assets/icon-192x192.png" />
+    <meta property="og:site_name" content="Khawreen Library" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="Khawreen Library | Digital Library" />
+    <meta property="twitter:description" content="Khawreen Library - Online Digital Library & Free PDF Books" />
+    <meta property="twitter:image" content="https://storage.googleapis.com/khawreen-library-assets/icon-192x192.png" />
+
+    <!-- Structured Data for Google Search -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Library",
+      "name": "Khawreen Library",
+      "alternateName": ["Khawreen Digital Library", "Khawreen Library Online"],
+      "description": "Comprehensive online digital library for reading and downloading PDF books.",
+      "url": "https://ais-dev-gs2q2trl3kklmzx7owg2ng-123967204777.europe-west2.run.app",
+      "logo": "https://storage.googleapis.com/khawreen-library-assets/icon-192x192.png",
+      "sameAs": [],
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://ais-dev-gs2q2trl3kklmzx7owg2ng-123967204777.europe-west2.run.app/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#4f46e5" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+             keyframes: {
+                'fade-in': {
+                    '0%': { opacity: '0' },
+                    '100%': { opacity: '1' },
+                },
+                'fade-in-up': {
+                    '0%': { opacity: '0', transform: 'translateY(20px)' },
+                    '100%': { opacity: '1', transform: 'translateY(0)' },
+                },
+            },
+            animation: {
+                'fade-in': 'fade-in 0.5s ease-out',
+                'fade-in-up': 'fade-in-up 0.5s ease-out',
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/styles.css" />
+    <!-- PDF.js for rendering PDF previews -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+      }
+    </script>
+    <script>
+      // Configure the worker source for pdf.js
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+    </script>
+    <script>
+      // Capture the beforeinstallprompt event and stash it
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent the mini-infobar from appearing on mobile
+        e.preventDefault();
+        // Stash the event so it can be triggered later.
+        window.deferredInstallPrompt = e;
+        // Dispatch a custom event to notify the React app that the prompt is ready
+        window.dispatchEvent(new CustomEvent('pwa-install-ready', { detail: e }));
+      });
+    </script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-100 dark:bg-slate-900">
+    <div id="root"></div>
+    <script>
+      // Forcefully unregister any service workers and clear cache to break any client-side freeze
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          for (let name of names) {
+            caches.delete(name);
+          }
+        });
+      }
+    </script>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

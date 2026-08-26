@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Library member, author, or administrator profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "purchasedBookIds": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email", "name", "role"]
+    },
+    "Book": {
+      "title": "Book",
+      "description": "Book listing in the library with metadata, category, price, and reading/download status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "description": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "pages": { "type": "number" },
+        "category": { "type": "string" },
+        "language": { "type": "string" },
+        "publicationYear": { "type": "number" },
+        "price": { "type": "number" },
+        "isFree": { "type": "boolean" },
+        "published": { "type": "boolean" },
+        "viewsCount": { "type": "number" },
+        "downloadsCount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "author", "price", "isFree", "published"]
+    },
+    "Purchase": {
+      "title": "Purchase",
+      "description": "Book purchase or instant access transaction record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "referenceCode": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed", "rejected"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "bookId", "amount", "status", "referenceCode"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Library configuration, bank info, and gateway keys",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "telegramBotToken": { "type": "string" },
+        "hesabpayMerchantId": { "type": "string" },
+        "hesabpayApiKey": { "type": "string" },
+        "bankAccountDetails": { "type": "string" },
+        "tonWalletAddress": { "type": "string" }
+      },
+      "required": ["id"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection"
+    },
+    "/books/{bookId}": {
+      "schema": "Book",
+      "description": "Library books catalog"
+    },
+    "/purchases/{purchaseId}": {
+      "schema": "Purchase",
+      "description": "Purchases and order confirmations"
+    },
+    "/settings/{settingId}": {
+      "schema": "Settings",
+      "description": "Application settings document"
+    }
+  }
+}
