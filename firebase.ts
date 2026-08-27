@@ -16,8 +16,7 @@ const firebaseConfig: FirebaseOptions = {
 };
 
 const databaseId: string =
-  import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID ||
-  "ai-studio-khawreenlibrary-b985de53-1084-4171-88e8-3ffd832bd40d";
+  import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "(default)";
 
 // 2. Initialize or retrieve existing Firebase App instance
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

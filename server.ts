@@ -27,7 +27,7 @@ app.use(express.json({ limit: '100mb' }));
 const firestoreDatabaseId =
   process.env.FIREBASE_FIRESTORE_DATABASE_ID ||
   process.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID ||
-  'ai-studio-khawreenlibrary-b985de53-1084-4171-88e8-3ffd832bd40d';
+  '(default)';
 
 let firestore: admin.firestore.Firestore;
 try {
