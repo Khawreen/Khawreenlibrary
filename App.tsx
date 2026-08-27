@@ -150,6 +150,7 @@ const App: React.FC = () => {
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [settings, setSettings] = useState<Settings>({ id: 'main', binanceApiKey: '', binanceApiSecret: '', hesabpayMerchantId: '', hesabpayApiKey: '', hesabpaySandboxMode: true });
+  const [adminSettings, setAdminSettings] = useState<Settings | null>(null);
   const [paymentFlow, setPaymentFlow] = useState<PaymentFlowState>({
       purchase: null,
       book: null,
@@ -286,6 +287,21 @@ const App: React.FC = () => {
 
     return () => unsubscribers.forEach(unsub => unsub());
   }, []);
+
+  // Fetch the full settings (including live API keys) only when an admin is
+  // signed in, from an endpoint that itself re-verifies admin status — the
+  // general `settings` state above is now a secrets-stripped public view.
+  useEffect(() => {
+    let active = true;
+    if (currentUser?.role === 'admin') {
+      db.fetchAdminSettings(currentUser.email).then((data) => {
+        if (active && data) setAdminSettings(data);
+      });
+    } else {
+      setAdminSettings(null);
+    }
+    return () => { active = false; };
+  }, [currentUser?.role, currentUser?.email]);
 
   // Handle URL navigation parameters from Telegram WebApp
   useEffect(() => {
@@ -803,9 +819,16 @@ const App: React.FC = () => {
   };
 
   const handleSaveSettings = async (newSettings: Omit<Settings, 'id'>) => {
-    await db.putSettings(newSettings);
-    showToast('Settings saved successfully!', 'success');
-    setActiveSection(Section.Admin);
+    if (!currentUser) return;
+    try {
+      await db.putSettings(newSettings, currentUser.email);
+      const refreshed = await db.fetchAdminSettings(currentUser.email);
+      if (refreshed) setAdminSettings(refreshed);
+      showToast('Settings saved successfully!', 'success');
+      setActiveSection(Section.Admin);
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to save settings.', 'error');
+    }
   };
   
   const handleUpdateBookDetails = async (bookId: string, updates: Partial<Book>) => {
@@ -969,7 +992,7 @@ const App: React.FC = () => {
           {activeSection === Section.MyPurchases && <MyPurchases books={myPurchasedBooks} reviews={reviews} onAddReview={handleAddReview} onRequestSummary={handleRequestSummary} onRequestPreview={handleRequestPreview} onNavigate={setActiveSection} onDownload={handleDownloadBook}/>}
           {activeSection === Section.AdsManager && currentUser?.role === 'admin' && <AdManager ads={ads} onAdd={handleAddAd} onUpdate={handleUpdateAd} onDelete={handleDeleteAd} />}
           {activeSection === Section.Orders && currentUser?.role === 'admin' && <OrderManagement purchases={purchases} books={books} users={users} onApproveOrder={handleAdminApproveOrder} />}
-          {activeSection === Section.Settings && currentUser?.role === 'admin' && <PaymentSettings settings={settings} onSave={handleSaveSettings} />}
+          {activeSection === Section.Settings && currentUser?.role === 'admin' && <PaymentSettings settings={adminSettings || settings} onSave={handleSaveSettings} />}
           {activeSection === Section.Profile && currentUser && <Profile showToast={showToast} />}
         </div>
       </main>

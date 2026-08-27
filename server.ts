@@ -4,51 +4,98 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
-import { initializeApp } from 'firebase/app';
+import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
 import { startTelegramBot, handleTelegramWebhookUpdate, deleteTelegramWebhook } from './telegram-bot.ts';
 import { hashPassword, verifyPassword, isPasswordMigrationNeeded, sanitizeUser } from './authUtils.ts';
 import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
-import { 
-  getFirestore, 
-  setLogLevel,
-  collection, 
-  getDocs, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where 
-} from 'firebase/firestore';
-
-try {
-  setLogLevel('silent');
-} catch {}
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 app.use(express.json({ limit: '100mb' }));
 
-// --- Firebase Configuration ---
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || "AIzaSyARDLfFHtmKiC8gsGBNZhvdnn3u-weXr7E",
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || process.env.VITE_FIREBASE_AUTH_DOMAIN || "excellent-runway-4wlzs.firebaseapp.com",
-  projectId: process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || "excellent-runway-4wlzs",
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET || "excellent-runway-4wlzs.firebasestorage.app",
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "410463710828",
-  appId: process.env.FIREBASE_APP_ID || process.env.VITE_FIREBASE_APP_ID || "1:410463710828:web:90f7cd91e3d1dc87e9b249"
-};
-
+// --- Firebase Admin SDK (privileged, server-only credentials) ---
+// IMPORTANT: the server used to talk to Firestore with the same public,
+// rule-restricted client SDK as the browser — meaning it had no more
+// authority than any visitor, and Firestore's open rules applied equally to
+// it. Using the Admin SDK with a service-account key (FIREBASE_SERVICE_ACCOUNT_JSON,
+// set as an environment variable — never committed to the repo) lets the
+// server bypass Firestore security rules as a trusted backend, so those
+// rules can now be locked down for everyone else without breaking the app.
 const firestoreDatabaseId =
   process.env.FIREBASE_FIRESTORE_DATABASE_ID ||
   process.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID ||
-  "ai-studio-khawreenlibrary-b985de53-1084-4171-88e8-3ffd832bd40d";
+  'ai-studio-khawreenlibrary-b985de53-1084-4171-88e8-3ffd832bd40d';
 
-const firebaseApp = initializeApp(firebaseConfig);
-const firestore = getFirestore(firebaseApp, firestoreDatabaseId);
+let firestore: admin.firestore.Firestore;
+try {
+  const svcJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!svcJson) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set.');
+  }
+  const serviceAccount = JSON.parse(svcJson);
+  if (!admin.apps.length) {
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  }
+  firestore = firestoreDatabaseId && firestoreDatabaseId !== '(default)'
+    ? getFirestore(admin.app(), firestoreDatabaseId)
+    : getFirestore(admin.app());
+  console.log('[FIREBASE ADMIN] Connected using service account credentials.');
+} catch (e: any) {
+  console.error('[FIREBASE ADMIN INIT ERROR]', e.message || e);
+  console.error('[FIREBASE ADMIN] Set FIREBASE_SERVICE_ACCOUNT_JSON in your environment variables. Falling back to local-disk storage only until this is configured.');
+  // A minimal stub so the rest of the file doesn't crash on startup when the
+  // key isn't configured yet — every call simply fails softly, and dbGet/
+  // dbList/dbSet already have local-disk fallbacks for this scenario.
+  firestore = null as any;
+}
+
+// --- Firestore client-API compatibility shim (backed by firebase-admin) ---
+// The rest of this file calls Firestore through the modular client-SDK
+// function names (doc/getDoc/setDoc/collection/getDocs/query/where/...) —
+// that call shape is kept as a stable internal interface, and these thin
+// wrappers translate it onto the privileged Admin SDK so every existing
+// call site below keeps working unchanged, just now running with trusted
+// server credentials instead of the public, rule-restricted client SDK.
+function doc(db: admin.firestore.Firestore, collectionName: string, id: string) {
+  if (!db) throw new Error('Firestore admin not initialized');
+  return db.collection(collectionName).doc(id);
+}
+function collection(db: admin.firestore.Firestore, collectionName: string) {
+  if (!db) throw new Error('Firestore admin not initialized');
+  return db.collection(collectionName);
+}
+async function getDoc(ref: admin.firestore.DocumentReference) {
+  const snap = await ref.get();
+  return {
+    exists: () => snap.exists,
+    id: snap.id,
+    data: () => snap.data(),
+    ref,
+  };
+}
+async function getDocs(refOrQuery: admin.firestore.Query) {
+  return refOrQuery.get();
+}
+async function setDoc(ref: admin.firestore.DocumentReference, data: any, options?: { merge?: boolean }) {
+  return options ? ref.set(data, options as admin.firestore.SetOptions) : ref.set(data);
+}
+async function updateDoc(ref: admin.firestore.DocumentReference, data: any) {
+  return ref.update(data);
+}
+async function deleteDoc(ref: admin.firestore.DocumentReference) {
+  return ref.delete();
+}
+function where(field: string, op: FirebaseFirestore.WhereFilterOp, value: any) {
+  return { field, op, value };
+}
+function query(colRef: admin.firestore.CollectionReference, ...conditions: { field: string; op: FirebaseFirestore.WhereFilterOp; value: any }[]) {
+  let q: admin.firestore.Query = colRef;
+  for (const c of conditions) q = q.where(c.field, c.op, c.value);
+  return q;
+}
 
 
 // --- Firebase with Robust Local Fallback Wrapper ---

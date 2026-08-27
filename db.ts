@@ -1003,65 +1003,68 @@ export const grantBookAccess = async (bookId: string, durationSeconds = 31536000
 
 // --- Settings ---
 
+// IMPORTANT: this used to be a direct Firestore realtime listener on
+// settings/main — which is exactly how live payment-gateway API keys and
+// bot tokens were being pushed to every visitor's browser regardless of
+// role. Firestore's rules now deny direct client reads on that document, so
+// this instead polls the server's sanitized /api/settings endpoint (secrets
+// stripped, replaced with hasHesabPay/hasCrypto/hasTelegramStars booleans).
 export const onSettingsSnapshot = (callback: (data: Settings | null) => void) => {
   let active = true;
+  let lastJson = '';
 
-  // Realtime Firestore settings listener
-  try {
-    const docRef = doc(firestore, 'settings', 'main');
-    const unsub = firestoreOnSnapshot(
-      docRef,
-      (docSnap) => {
-        if (!active) return;
-        if (docSnap.exists()) {
-          callback({ id: docSnap.id, ...docSnap.data() } as Settings);
-        } else {
-          callback({
-            id: 'main',
-            hesabpayMerchantId: '',
-            hesabpayApiKey: '',
-            hesabpaySandboxMode: true,
-            usdtTrc20Address: '',
-            tonWalletAddress: '',
-            telegramBotToken: '',
-            websiteUrl: typeof window !== 'undefined' ? window.location.origin : ''
-          });
+  const poll = async () => {
+    if (!active) return;
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        const json = JSON.stringify(data);
+        if (json !== lastJson) {
+          lastJson = json;
+          callback(data as Settings);
         }
-      },
-      (err) => {
-        // Silently fallback
       }
-    );
+    } catch {
+      // Server unreachable — leave last-known settings in place
+    }
+  };
 
-    return () => {
-      active = false;
-      unsub();
-    };
-  } catch (e) {
-    return () => {
-      active = false;
-    };
+  poll();
+  const intervalId = setInterval(poll, 10000);
+
+  return () => {
+    active = false;
+    clearInterval(intervalId);
+  };
+};
+
+// Full settings (including live API keys) for the admin Payment Settings
+// screen only. Requires the caller to already be a registered admin — the
+// server re-verifies this itself before returning anything.
+export const fetchAdminSettings = async (adminUserId: string): Promise<Settings | null> => {
+  try {
+    const res = await fetch(`/api/settings/admin?adminUserId=${encodeURIComponent(adminUserId)}`);
+    if (!res.ok) return null;
+    return await res.json() as Settings;
+  } catch {
+    return null;
   }
 };
 
-export const putSettings = async (settings: Omit<Settings, 'id'>) => {
-  let serverSuccess = false;
-  try {
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings)
-    });
-    if (res.ok) serverSuccess = true;
-  } catch {}
-
-  if (!serverSuccess) {
-    try {
-      const docRef = doc(firestore, 'settings', 'main');
-      await setDoc(docRef, { ...settings, id: 'main' }, { merge: true });
-    } catch (e) {
-      console.error('Direct Firestore putSettings error:', e);
-      throw new Error('Failed to save settings.');
-    }
+export const putSettings = async (settings: Omit<Settings, 'id'>, adminUserId: string) => {
+  const res = await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...settings, adminUserId })
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    // No direct-Firestore fallback here anymore: settings hold live payment
+    // API keys, and Firestore's rules now correctly refuse a client write to
+    // that document — falling back to it would just fail anyway, and
+    // silently swallowing a real permission rejection is worse than
+    // surfacing it.
+    throw new Error(data.error || 'Failed to save settings.');
   }
 };

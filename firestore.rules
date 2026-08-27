@@ -1,8 +1,59 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // The server (server.ts) talks to Firestore through the Firebase Admin
+    // SDK using a private service-account key — Admin SDK access is ALWAYS
+    // exempt from these rules, regardless of what they say. Everything below
+    // only governs direct requests from a browser (or anyone else) using the
+    // public client SDK / REST API with the public API key.
+
+    // Publicly browsable library content: safe to read, but only the server
+    // (via the Admin SDK) may write it, so a random visitor can't publish
+    // fake books, edit prices, or approve their own uploads.
+    match /books/{bookId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /ads/{adId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Everything else is private: accounts (password hashes), purchases
+    // (payment records + contact info), site settings (live payment-gateway
+    // API keys), access grants, Telegram user links, and raw file chunks for
+    // paid PDFs. None of this should ever be readable or writable directly
+    // from a browser — the app's server endpoints (which run with Admin SDK
+    // privileges and their own permission checks) are the only legitimate
+    // path to this data.
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+    match /purchases/{purchaseId} {
+      allow read, write: if false;
+    }
+    match /settings/{settingId} {
+      allow read, write: if false;
+    }
+    match /access_grants/{grantId} {
+      allow read, write: if false;
+    }
+    match /telegram_users/{telegramUserId} {
+      allow read, write: if false;
+    }
+    match /file_chunks/{chunkId} {
+      allow read, write: if false;
+    }
+
+    // Deny-by-default: any collection not explicitly listed above (present
+    // or added later) is private unless a rule above says otherwise.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
